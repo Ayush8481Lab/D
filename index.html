@@ -20,37 +20,33 @@
             overflow: hidden;
         }
 
-        /* 1. THE CROPPING CONTAINER ( The "Window" ) */
+        /* 1. THE CROPPING CONTAINER */
         .crop-container {
             width: 100%;
             height: 100%; 
             position: relative;
-            overflow: hidden; /* This cuts off anything sticking out */
+            overflow: hidden; 
             background: white;
         }
 
-        /* 2. THE IFRAME ( The Content ) */
+        /* 2. THE IFRAME */
         iframe {
             width: 100%;
-            height: 227%; /* KEY TRICK: Make iframe TALLER than the screen */
+            height: 227%; 
             border: none;
-            
-            /* Push content up to hide the bottom text */
-            /* You can adjust the '-150px' if you need to hide more/less */
             margin-bottom: -150px; 
         }
 
-        /* 3. WHITE COVER BAR (Optional "Whiteout" tape)
-           Use this if the text is 'sticky' and moves when you scroll. */
+        /* 3. WHITE COVER BAR */
         .white-out-bar {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 00px; /* Height of the text you want to hide */
+            height: 0px; 
             background-color: white; 
             z-index: 10;
-            pointer-events: none; /* Let clicks pass through if needed */
+            pointer-events: none;
         }
 
         /* LOADER STYLING */
@@ -73,20 +69,22 @@
 
     <div class="crop-container">
         <!-- 
-           sandbox: Improves security and prevents pop-ups/redirects 
-           scrolling="yes": Ensures you can scroll the PDF list
+           UPDATED SECURITY SETTINGS:
+           1. sandbox: Removed 'allow-popups'. Kept scripts/forms/same-origin so the site works.
+              Since 'allow-top-navigation' is NOT here, the iframe cannot redirect your browser.
+           2. referrerpolicy: set to 'no-referrer' for extra privacy/anti-tracking.
         -->
         <iframe 
             id="myFrame"
             src="https://newslabzone.com/epaper/dainik-jagran#item13"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            sandbox="allow-forms allow-scripts allow-same-origin"
+            referrerpolicy="no-referrer"
             scrolling="yes"
             onload="document.getElementById('loader').style.display='none';">
         </iframe>
 
-        <!-- This white block sits on top of the bottom area to cover text -->
         <div class="white-out-bar"></div>
     </div>
 
 </body>
-  </html>
+</html>
