@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dainik Jagran Viewer</title>
+    <style>
+        /* RESET */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: #e0e0e0;
+            font-family: sans-serif;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 1. THE CROPPING CONTAINER ( The "Window" ) */
+        .crop-container {
+            width: 100%;
+            height: 100%; 
+            position: relative;
+            overflow: hidden; /* This cuts off anything sticking out */
+            background: white;
+        }
+
+        /* 2. THE IFRAME ( The Content ) */
+        iframe {
+            width: 100%;
+            height: 222%; /* KEY TRICK: Make iframe TALLER than the screen */
+            border: none;
+            
+            /* Push content up to hide the bottom text */
+            /* You can adjust the '-150px' if you need to hide more/less */
+            margin-bottom: -150px; 
+        }
+
+        /* 3. WHITE COVER BAR (Optional "Whiteout" tape)
+           Use this if the text is 'sticky' and moves when you scroll. */
+        .white-out-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 00px; /* Height of the text you want to hide */
+            background-color: white; 
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through if needed */
+        }
+
+        /* LOADER STYLING */
+        #loader {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 5px;
+            z-index: 999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">Loading Paper...</div>
+
+    <div class="crop-container">
+        <!-- 
+           sandbox: Improves security and prevents pop-ups/redirects 
+           scrolling="yes": Ensures you can scroll the PDF list
+        -->
+        <iframe 
+            id="myFrame"
+            src="https://newslabzone.com/epaper/dainik-jagran#item13"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            scrolling="yes"
+            onload="document.getElementById('loader').style.display='none';">
+        </iframe>
+
+        <!-- This white block sits on top of the bottom area to cover text -->
+        <div class="white-out-bar"></div>
+    </div>
+
+</body>
+  </html>
