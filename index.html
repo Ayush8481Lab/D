@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -178,10 +179,9 @@
             <div style="font-size:14px; color:#666; line-height:1.5;">
                 Today's E-Paper has not been uploaded yet.<br>
                 It is usually updated before <b>08:00 AM</b>.<br>
-                Please check back at 08:00 AM for sure 😊.
+                Please check back at 08:00 AM for Sure ☺️.
                 <br>
-              
-             ----  Ayush@8481
+                	---Ayush@8481
             </div>
             <button class="retry-btn" onclick="location.reload()">Refresh Page</button>
         </div>
@@ -230,23 +230,32 @@
 
     <script>
         const { jsPDF } = window.jspdf;
+        // This is the source for main newspaper images
         const TARGET_URL = "https://newslabzone.com/epaper/dainik-jagran#item13";
+        // This is your custom District URL
         const DISTRICT_URL = "https://ayush8481lab.github.io/P/";
         
         let PAPER_PAGES = [];
 
+        // 0. DATE & SCROLL HANDLER
         window.addEventListener('load', () => {
             const d = new Date();
             const dateString = d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             document.getElementById('headerDate').innerText = dateString;
 
+            let lastScrollY = window.scrollY;
             const header = document.getElementById('smartHeader');
+            
             window.addEventListener('scroll', () => {
-                if (window.scrollY > 100) { header.classList.add('header-hidden'); } 
-                else { header.classList.remove('header-hidden'); }
+                if (window.scrollY > 100) {
+                    header.classList.add('header-hidden');
+                } else {
+                    header.classList.remove('header-hidden');
+                }
             });
         });
 
+        // 1. DATA LOADING
         window.addEventListener('DOMContentLoaded', async () => {
             const loader = document.getElementById('loader');
             const status = document.getElementById('status-text');
@@ -294,6 +303,7 @@
 
         function renderPages() {
             const container = document.getElementById('paper-container');
+            
             PAPER_PAGES.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'page-wrapper';
@@ -305,6 +315,9 @@
                 img.id = `img-pg-${index}`;
                 img.loading = "lazy";
                 img.crossOrigin = "anonymous";
+                img.onerror = function() {
+                    if (this.crossOrigin) { this.removeAttribute('crossorigin'); this.src = this.src; }
+                };
 
                 const badge = document.createElement('div');
                 badge.className = 'page-badge';
@@ -316,7 +329,9 @@
             });
         }
 
+        // IFRAME ACTIONS (MODIFIED FOR YOUR LINK)
         function openDistrict() {
+            // Updated to use your specified URL
             document.getElementById('web-frame').src = DISTRICT_URL;
             document.getElementById('district-modal').style.display = 'flex';
         }
@@ -326,7 +341,7 @@
             document.getElementById('web-frame').src = "";
         }
 
-        // UPDATED PDF GENERATION WITH AUTO-OPEN
+        // PDF GENERATION
         async function generatePDF() {
             const modal = document.getElementById('progress-modal');
             const bar = document.getElementById('prog-bar');
@@ -337,7 +352,7 @@
             btn.disabled = true;
 
             try {
-                const doc = new jsPDF({ orientation: 'p', unit: 'mm', compress: true });
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm' });
                 const PDF_WIDTH = 210;
 
                 for (let i = 0; i < PAPER_PAGES.length; i++) {
@@ -349,12 +364,13 @@
                     const imgEl = document.getElementById(`img-pg-${i}`);
                     let base64 = "";
 
-                    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+                    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0 && imgEl.crossOrigin === "anonymous") {
                         base64 = await imageToDataURL(imgEl);
                     }
                     if (!base64) {
                         const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(item.url)}&output=jpg&q=80`;
                         const res = await fetch(proxyUrl);
+                        if (!res.ok) throw new Error("Download failed");
                         const blob = await res.blob();
                         base64 = await blobToBase64(blob);
                     }
@@ -366,20 +382,12 @@
                     else doc.internal.pageSize.setHeight(pdfHeight);
                     doc.addImage(base64, 'JPEG', 0, 0, PDF_WIDTH, pdfHeight);
                     
-                    await new Promise(r => setTimeout(r, 10));
+                    await new Promise(r => setTimeout(r, 0));
                 }
 
                 bar.style.width = '100%'; pct.innerText = '100%'; 
                 const dateStr = new Date().toISOString().slice(0,10);
-                const fileName = `E-Paper_${dateStr}_Live@8481.pdf`;
-
-                // 1. Trigger Auto-Open in New Tab
-                const blobUrl = doc.output('bloburl');
-                window.open(blobUrl, '_blank');
-
-                // 2. Trigger Download
-                doc.save(fileName);
-
+                doc.save(`E-Paper_${dateStr}_Live@8481.pdf`);
                 setTimeout(() => { modal.style.display = 'none'; btn.disabled = false; bar.style.width = '0%'; }, 1500);
 
             } catch (err) {
@@ -394,7 +402,7 @@
                     const canvas = document.createElement('canvas');
                     canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
                     canvas.getContext('2d').drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', 0.75));
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
                 } catch (e) { resolve(null); }
             });
         }
@@ -408,4 +416,4 @@
         }
     </script>
 </body>
-    </html>
+        </html>
