@@ -2,89 +2,410 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dainik Jagran Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Live@8481</title>
+    <!-- Load jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         /* RESET */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         
         body {
-            background-color: #e0e0e0;
-            font-family: sans-serif;
-            height: 100vh;
+            background-color: #f4f4f4;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
             width: 100vw;
+            display: flex; flex-direction: column; align-items: center;
+            /* Security */
+            user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+        }
+
+        /* 1. BEAUTIFUL TOP HEADER (Smart Hide) */
+        .top-header {
+            width: 100%;
+            height: 65px;
+            background: #ffffff;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            position: fixed; /* Stays at top initially */
+            top: 0; 
+            z-index: 800;
+            border-bottom: 3px solid #D50000; /* Jagran Red Border */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth Slide Animation */
         }
 
-        /* 1. THE CROPPING CONTAINER */
-        .crop-container {
-            width: 98%;
-            height: 100%; 
-            position: relative;
-            overflow: hidden; 
+        /* Class to hide header */
+        .header-hidden {
+            transform: translateY(-110%);
+        }
+
+        .header-title {
+            font-family: 'Georgia', 'Times New Roman', serif; /* Newspaper Font */
+            font-size: 22px;
+            font-weight: 900;
+            color: #D50000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-date {
+            font-size: 10px;
+            color: #555;
+            font-weight: 600;
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* 2. VIEWER CONTAINER */
+        #paper-container {
+            width: 100%; max-width: 900px;
+            display: flex; flex-direction: column; gap: 15px;
+            padding: 15px 0;
+            /* Add top padding so content isn't hidden behind header initially */
+            padding-top: 80px; 
+            min-height: 50vh;
+        }
+
+        .page-wrapper {
+            position: relative; background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 300px; 
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .hq-image { 
+            width: 100%; height: auto; display: block; 
+            background: #eee; pointer-events: none;
+        }
+
+        /* PAGE BADGE (Auto-Hide) */
+        .page-badge {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0,0,0,0.7); color: white;
+            padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; 
+            animation: fadeOut 0.5s ease-in-out 3s forwards;
+        }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* 3. FOOTER CARD */
+        .footer-card {
+            width: 95%; max-width: 900px;
             background: white;
+            margin: 20px 0 50px 0; 
+            padding: 30px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            display: none; 
+            flex-direction: column; align-items: center; gap: 20px;
+            text-align: center;
         }
 
-        /* 2. THE IFRAME */
-        iframe {
-            width: 100%;
-            height: 227%; 
-            border: none;
-            margin-bottom: -150px; 
+        .branding-text { color: #555; font-size: 14px; font-weight: 700; }
+        .sting-text {
+            font-family: 'Arial', sans-serif; font-style: italic; font-weight: 900;
+            animation: sting 2.5s infinite linear;
+            display: inline-block; margin-left: 5px;
+        }
+        @keyframes sting {
+            0%,100% { color: #D50000; text-shadow: 0 0 5px rgba(213,0,0,0.2); }
+            50% { color: #0047AB; text-shadow: 0 0 5px rgba(0,71,171,0.2); }
         }
 
-        /* 3. WHITE COVER BAR */
-        .white-out-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 0px; 
-            background-color: white; 
-            z-index: 10;
-            pointer-events: none;
+        .button-group { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .action-btn {
+            border: none; padding: 12px 24px; border-radius: 30px;
+            font-size: 14px; font-weight: bold;
+            display: flex; align-items: center; gap: 8px;
+            cursor: pointer; transition: transform 0.2s; color: white; min-width: 160px; justify-content: center;
         }
+        .action-btn:active { transform: scale(0.95); }
+        .btn-district { background: #444; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .btn-pdf { background: linear-gradient(135deg, #D50000, #b70000); box-shadow: 0 4px 10px rgba(213, 0, 0, 0.3); }
 
-        /* LOADER STYLING */
-        #loader {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 5px;
-            z-index: 999;
-            font-size: 14px;
+        /* 4. MODALS (Popups) */
+        #district-modal, #progress-modal, #loader, #error-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         }
+        
+        /* District Modal */
+        #district-modal { background: white; z-index: 10001; display: none; flex-direction: column; }
+        #district-header { height: 50px; background: #333; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-weight: bold; }
+        #web-frame { flex-grow: 1; width: 100%; border: none; }
+        #close-iframe-btn { background: #D50000; border: none; color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; }
+
+        /* PDF Progress */
+        #progress-modal { background: rgba(0,0,0,0.9); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .progress-box { background: #222; padding: 30px; border-radius: 12px; width: 85%; max-width: 320px; }
+        .progress-track { width: 100%; height: 8px; background: #444; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: #00e676; width: 0%; transition: width 0.3s ease; }
+
+        /* Loader */
+        #loader { background: white; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid #D50000; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        #status-text { font-weight: bold; color: #555; text-align: center; transition: all 0.3s; }
+
+        /* Error Screen */
+        #error-container { display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 500; background:#f0f2f5;}
+        .error-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
+        .retry-btn { background: #333; color: white; padding: 12px 25px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; margin-top:20px;}
+
     </style>
 </head>
-<body>
+<body oncontextmenu="return false">
 
-    <div id="loader">NewsPaper is Loading...</div>
-
-    <div class="crop-container">
-        <!-- 
-           UPDATED SECURITY SETTINGS:
-           1. sandbox: Removed 'allow-popups'. Kept scripts/forms/same-origin so the site works.
-              Since 'allow-top-navigation' is NOT here, the iframe cannot redirect your browser.
-           2. referrerpolicy: set to 'no-referrer' for extra privacy/anti-tracking.
-        -->
-        <iframe 
-            id="myFrame"
-            src="https://newslabzone.com/epaper/dainik-jagran#item13"
-            sandbox="allow-forms allow-scripts allow-same-origin"
-            referrerpolicy="no-referrer"
-            scrolling="yes"
-            onload="document.getElementById('loader').style.display='none';">
-        </iframe>
-
-        <div class="white-out-bar"></div>
+    <!-- INITIAL LOADER -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="status-text">Connecting Ayush@8481 Server...</div>
     </div>
 
+    <!-- NEW TOP HEADER -->
+    <header class="top-header" id="smartHeader">
+        <div class="header-title">NATIONAL E-PAPER</div>
+        <div class="header-date" id="headerDate">Loading Date...</div>
+    </header>
+
+    <!-- ERROR SCREEN -->
+    <div id="error-container">
+        <div class="error-card">
+            <div style="font-size:50px; margin-bottom:15px;">🗞️</div>
+            <div style="font-size:20px; font-weight:bold; color:#333; margin-bottom:10px;">Not Published Yet</div>
+            <div style="font-size:14px; color:#666; line-height:1.5;">
+                Today's E-Paper has not been uploaded yet.<br>
+                It is usually updated before <b>08:00 AM</b>.<br>
+                Please check back at 08:00 AM for sure 😊.
+                <br>
+              
+             ----  Ayush@8481
+            </div>
+            <button class="retry-btn" onclick="location.reload()">Refresh Page</button>
+        </div>
+    </div>
+
+    <!-- DISTRICTWISE MODAL -->
+    <div id="district-modal">
+        <div id="district-header">
+            <span>Select District</span>
+            <button id="close-iframe-btn" onclick="closeDistrict()">Close X</button>
+        </div>
+        <iframe id="web-frame" sandbox="allow-forms allow-scripts allow-same-origin"></iframe>
+    </div>
+
+    <!-- PDF PROGRESS -->
+    <div id="progress-modal">
+        <div class="progress-box">
+            <div style="font-size:18px; font-weight:bold; margin-bottom:20px;">Generating PDF</div>
+            <span style="font-size:28px; font-weight:bold; display:block; margin-bottom:5px;" id="prog-pct">0%</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="prog-bar"></div>
+            </div>
+            <div style="font-size:13px; color:#ccc;" id="prog-details">Downloading E-Paper...</div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="paper-container"></div>
+
+    <!-- FOOTER CARD (Bottom) -->
+    <div class="footer-card" id="main-footer">
+        <div class="branding-text">
+            Developed By <span class="sting-text">Ayush@8481</span>
+        </div>
+        <div class="button-group">
+            <button class="action-btn btn-district" onclick="openDistrict()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12,2C15.31,2 18,4.66 18,7.95C18,12.41 12,19 12,19C12,19 6,12.41 6,7.95C6,4.66 8.69,2 12,2M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M20,19C20,21.21 16.42,23 12,23C7.58,23 4,21.21 4,19C4,17.71 5.22,16.56 7.11,15.83L7.75,16.74C6.67,17.19 6,17.81 6,18.5C6,19.88 8.69,21 12,21C15.31,21 18,19.88 18,18.5C18,17.81 17.33,17.19 16.25,16.74L16.89,15.83C18.78,16.56 20,17.71 20,19Z" /></svg>
+                Districtwise E-paper
+            </button>
+            <button class="action-btn btn-pdf" id="downloadBtn" onclick="generatePDF()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
+                Download PDF
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+        const TARGET_URL = "https://newslabzone.com/epaper/dainik-jagran#item13";
+        const DISTRICT_URL = "https://ayush8481lab.github.io/P/";
+        
+        let PAPER_PAGES = [];
+
+        window.addEventListener('load', () => {
+            const d = new Date();
+            const dateString = d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('headerDate').innerText = dateString;
+
+            const header = document.getElementById('smartHeader');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 100) { header.classList.add('header-hidden'); } 
+                else { header.classList.remove('header-hidden'); }
+            });
+        });
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const loader = document.getElementById('loader');
+            const status = document.getElementById('status-text');
+            const errorDiv = document.getElementById('error-container');
+            const footer = document.getElementById('main-footer');
+
+            setTimeout(() => { status.innerText = "Loading Newspaper..."; }, 1000);
+
+            try {
+                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(TARGET_URL)}`;
+                const res = await fetch(proxyUrl);
+                if (!res.ok) throw new Error("Connection Failed");
+                const htmlData = await res.text();
+
+                const regex = /(https?:\/\/[^"'>\s]+ss\.png)/gi;
+                const matches = htmlData.match(regex);
+
+                if (!matches || matches.length === 0) {
+                    loader.style.display = 'none';
+                    errorDiv.style.display = 'flex'; 
+                    return;
+                }
+
+                const unique = [...new Set(matches)];
+                PAPER_PAGES = unique.map(link => {
+                    const pgMatch = link.match(/-pg(\d+)-/);
+                    const num = pgMatch ? parseInt(pgMatch[1]) : 999;
+                    const parts = link.split('/');
+                    const file = parts.pop().replace('ss.png', '.png');
+                    const hqUrl = `${parts.join('/')}/M-${file}`;
+                    return { page: num, url: hqUrl };
+                }).sort((a,b) => a.page - b.page);
+
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                    footer.style.display = 'flex'; 
+                    renderPages();
+                }, 1500);
+
+            } catch (err) {
+                loader.style.display = 'none';
+                errorDiv.style.display = 'flex';
+            }
+        });
+
+        function renderPages() {
+            const container = document.getElementById('paper-container');
+            PAPER_PAGES.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'page-wrapper';
+                const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(item.url)}&output=jpg&q=80`;
+
+                const img = document.createElement('img');
+                img.src = proxyUrl;
+                img.className = 'hq-image';
+                img.id = `img-pg-${index}`;
+                img.loading = "lazy";
+                img.crossOrigin = "anonymous";
+
+                const badge = document.createElement('div');
+                badge.className = 'page-badge';
+                badge.innerText = `PG ${item.page}`;
+
+                div.appendChild(img);
+                div.appendChild(badge);
+                container.appendChild(div);
+            });
+        }
+
+        function openDistrict() {
+            document.getElementById('web-frame').src = DISTRICT_URL;
+            document.getElementById('district-modal').style.display = 'flex';
+        }
+
+        function closeDistrict() {
+            document.getElementById('district-modal').style.display = 'none';
+            document.getElementById('web-frame').src = "";
+        }
+
+        // UPDATED PDF GENERATION WITH AUTO-OPEN
+        async function generatePDF() {
+            const modal = document.getElementById('progress-modal');
+            const bar = document.getElementById('prog-bar');
+            const pct = document.getElementById('prog-pct');
+            const btn = document.getElementById('downloadBtn');
+
+            modal.style.display = 'flex';
+            btn.disabled = true;
+
+            try {
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm', compress: true });
+                const PDF_WIDTH = 210;
+
+                for (let i = 0; i < PAPER_PAGES.length; i++) {
+                    const item = PAPER_PAGES[i];
+                    const percent = Math.round(((i) / PAPER_PAGES.length) * 100);
+                    bar.style.width = `${percent}%`;
+                    pct.innerText = `${percent}%`;
+
+                    const imgEl = document.getElementById(`img-pg-${i}`);
+                    let base64 = "";
+
+                    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+                        base64 = await imageToDataURL(imgEl);
+                    }
+                    if (!base64) {
+                        const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(item.url)}&output=jpg&q=80`;
+                        const res = await fetch(proxyUrl);
+                        const blob = await res.blob();
+                        base64 = await blobToBase64(blob);
+                    }
+
+                    const props = doc.getImageProperties(base64);
+                    const pdfHeight = (props.height / props.width) * PDF_WIDTH;
+
+                    if (i > 0) doc.addPage([PDF_WIDTH, pdfHeight]);
+                    else doc.internal.pageSize.setHeight(pdfHeight);
+                    doc.addImage(base64, 'JPEG', 0, 0, PDF_WIDTH, pdfHeight);
+                    
+                    await new Promise(r => setTimeout(r, 10));
+                }
+
+                bar.style.width = '100%'; pct.innerText = '100%'; 
+                const dateStr = new Date().toISOString().slice(0,10);
+                const fileName = `E-Paper_${dateStr}_Live@8481.pdf`;
+
+                // 1. Trigger Auto-Open in New Tab
+                const blobUrl = doc.output('bloburl');
+                window.open(blobUrl, '_blank');
+
+                // 2. Trigger Download
+                doc.save(fileName);
+
+                setTimeout(() => { modal.style.display = 'none'; btn.disabled = false; bar.style.width = '0%'; }, 1500);
+
+            } catch (err) {
+                alert("PDF Error: " + err.message);
+                modal.style.display = 'none'; btn.disabled = false;
+            }
+        }
+
+        function imageToDataURL(img) {
+            return new Promise((resolve) => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                    canvas.getContext('2d').drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/jpeg', 0.75));
+                } catch (e) { resolve(null); }
+            });
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+    </script>
 </body>
-</html>
+    </html>
