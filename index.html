@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,7 +7,7 @@
     <!-- Load jsPDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* RESET */
+        /* --- RESET & BASIC SETUP --- */
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         
         body {
@@ -21,53 +20,48 @@
             user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
         }
 
-        /* 1. BEAUTIFUL TOP HEADER (Smart Hide) */
+        /* --- 1. TOP HEADER --- */
         .top-header {
             width: 100%;
             height: 65px;
             background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: fixed; /* Stays at top initially */
-            top: 0; 
-            z-index: 800;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: fixed; top: 0; z-index: 800;
             border-bottom: 3px solid #D50000; /* Jagran Red Border */
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth Slide Animation */
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
-        /* Class to hide header */
-        .header-hidden {
-            transform: translateY(-110%);
-        }
+        .header-hidden { transform: translateY(-110%); }
 
         .header-title {
-            font-family: 'Georgia', 'Times New Roman', serif; /* Newspaper Font */
-            font-size: 22px;
-            font-weight: 900;
-            color: #D50000;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 22px; font-weight: 900;
+            color: #D50000; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .header-date-row {
+            display: flex; align-items: center; gap: 8px; margin-top: 2px;
         }
 
         .header-date {
-            font-size: 10px;
-            color: #555;
-            font-weight: 600;
-            margin-top: 2px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 10px; color: #555; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
         }
 
-        /* 2. VIEWER CONTAINER */
+        /* Invisible Date Picker */
+        #datePickerWrapper { position: relative; width: 20px; height: 20px; overflow: hidden; }
+        #datePickerIcon { font-size: 14px; cursor: pointer; }
+        #datePicker { 
+            position: absolute; top: 0; left: 0; opacity: 0; 
+            width: 100%; height: 100%; cursor: pointer; 
+        }
+
+        /* --- 2. VIEWER CONTAINER --- */
         #paper-container {
             width: 100%; max-width: 900px;
             display: flex; flex-direction: column; gap: 15px;
-            padding: 15px 0;
-            /* Add top padding so content isn't hidden behind header initially */
-            padding-top: 80px; 
+            padding: 15px 0; padding-top: 80px; 
             min-height: 50vh;
         }
 
@@ -83,16 +77,17 @@
             background: #eee; pointer-events: none;
         }
 
-        /* PAGE BADGE (Auto-Hide) */
+        /* PAGE BADGE (Updated for Scroll Logic) */
         .page-badge {
             position: absolute; top: 10px; right: 10px;
             background: rgba(0,0,0,0.7); color: white;
-            padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; 
-            animation: fadeOut 0.5s ease-in-out 3s forwards;
+            padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.3s ease; /* Smooth fade */
         }
-        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+        .page-badge.visible { opacity: 1; }
 
-        /* 3. FOOTER CARD */
+        /* --- 3. FOOTER CARD --- */
         .footer-card {
             width: 95%; max-width: 900px;
             background: white;
@@ -106,6 +101,8 @@
         }
 
         .branding-text { color: #555; font-size: 14px; font-weight: 700; }
+        
+        /* BLINKING ANIMATION */
         .sting-text {
             font-family: 'Arial', sans-serif; font-style: italic; font-weight: 900;
             animation: sting 2.5s infinite linear;
@@ -117,6 +114,7 @@
         }
 
         .button-group { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        
         .action-btn {
             border: none; padding: 12px 24px; border-radius: 30px;
             font-size: 14px; font-weight: bold;
@@ -124,36 +122,58 @@
             cursor: pointer; transition: transform 0.2s; color: white; min-width: 160px; justify-content: center;
         }
         .action-btn:active { transform: scale(0.95); }
+
         .btn-district { background: #444; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .btn-pdf { background: linear-gradient(135deg, #D50000, #b70000); box-shadow: 0 4px 10px rgba(213, 0, 0, 0.3); }
+        
+        .btn-default { 
+            background: white; border: 2px solid #D50000; color: #D50000; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+        }
+        .btn-default.active { background: #D50000; color: white; }
 
-        /* 4. MODALS (Popups) */
+        /* --- 4. MODALS --- */
         #district-modal, #progress-modal, #loader, #error-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         }
-        
-        /* District Modal */
-        #district-modal { background: white; z-index: 10001; display: none; flex-direction: column; }
-        #district-header { height: 50px; background: #333; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-weight: bold; }
-        #web-frame { flex-grow: 1; width: 100%; border: none; }
-        #close-iframe-btn { background: #D50000; border: none; color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; }
 
-        /* PDF Progress */
-        #progress-modal { background: rgba(0,0,0,0.9); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        .progress-box { background: #222; padding: 30px; border-radius: 12px; width: 85%; max-width: 320px; }
-        .progress-track { width: 100%; height: 8px; background: #444; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
-        .progress-fill { height: 100%; background: #00e676; width: 0%; transition: width 0.3s ease; }
-
-        /* Loader */
+        /* LOADER */
         #loader { background: white; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid #D50000; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         #status-text { font-weight: bold; color: #555; text-align: center; transition: all 0.3s; }
 
-        /* Error Screen */
+        /* ERROR SCREEN */
         #error-container { display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 500; background:#f0f2f5;}
         .error-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
         .retry-btn { background: #333; color: white; padding: 12px 25px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; margin-top:20px;}
+
+        /* PDF PROGRESS */
+        #progress-modal { background: rgba(0,0,0,0.9); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .progress-box { background: #222; padding: 30px; border-radius: 12px; width: 85%; max-width: 320px; }
+        .progress-track { width: 100%; height: 8px; background: #444; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: #00e676; width: 0%; transition: width 0.3s ease; }
+
+        /* HIERARCHICAL MODAL */
+        #district-modal { background: #f8f9fa; z-index: 10001; display: none; flex-direction: column; }
+        .modal-header {
+            height: 60px; background: white; border-bottom: 1px solid #e0e0e0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; font-size: 18px; font-weight: 800; color: #333;
+        }
+        .close-iframe-btn { background: #D50000; border: none; color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; }
+        
+        .modal-body { flex: 1; overflow-y: auto; padding: 15px; }
+        
+        .list-item {
+            background: white; padding: 16px; margin-bottom: 10px;
+            border-radius: 8px; border-left: 4px solid #D50000;
+            font-weight: 600; font-size: 15px; color: #333;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
+        }
+        .list-item:active { background: #eee; }
+        .back-nav { color: #D50000; font-weight: bold; padding: 10px; margin-bottom: 5px; display: block; cursor: pointer;}
 
     </style>
 </head>
@@ -165,10 +185,16 @@
         <div id="status-text">Connecting Ayush@8481 Server...</div>
     </div>
 
-    <!-- NEW TOP HEADER -->
+    <!-- TOP HEADER -->
     <header class="top-header" id="smartHeader">
-        <div class="header-title">NATIONAL E-PAPER</div>
-        <div class="header-date" id="headerDate">Loading Date...</div>
+        <div class="header-title" id="edition-title">NATIONAL E-PAPER</div>
+        <div class="header-date-row">
+            <div class="header-date" id="headerDate">Loading...</div>
+            <div id="datePickerWrapper">
+                <span id="datePickerIcon">📅</span>
+                <input type="date" id="datePicker" onchange="onDateChanged()">
+            </div>
+        </div>
     </header>
 
     <!-- ERROR SCREEN -->
@@ -177,23 +203,26 @@
             <div style="font-size:50px; margin-bottom:15px;">🗞️</div>
             <div style="font-size:20px; font-weight:bold; color:#333; margin-bottom:10px;">Not Published Yet</div>
             <div style="font-size:14px; color:#666; line-height:1.5;">
-                Today's E-Paper has not been uploaded yet.<br>
-                It is usually updated before <b>08:00 AM</b>.<br>
+                The edition for <b id="err-name">this district</b><br>
+                is not available for <b id="err-date">this date</b>.<br>
                 Please check back at 08:00 AM for Sure ☺️.
                 <br>
                 	---Ayush@8481
             </div>
-            <button class="retry-btn" onclick="location.reload()">Refresh Page</button>
+            <button class="retry-btn" onclick="openDistrictModal()">Change District</button>
+            <button class="retry-btn" style="background:#D50000; margin-top:10px;" onclick="resetToToday()">Go to Today</button>
         </div>
     </div>
 
-    <!-- DISTRICTWISE MODAL -->
+    <!-- DISTRICT MODAL -->
     <div id="district-modal">
-        <div id="district-header">
-            <span>Select District</span>
-            <button id="close-iframe-btn" onclick="closeDistrict()">Close X</button>
+        <div class="modal-header">
+            <span id="modal-title">Select State</span>
+            <button class="close-iframe-btn" onclick="closeDistrictModal()">Close X</button>
         </div>
-        <iframe id="web-frame" sandbox="allow-forms allow-scripts allow-same-origin"></iframe>
+        <div class="modal-body" id="modal-list">
+            <!-- Content injected via JS -->
+        </div>
     </div>
 
     <!-- PDF PROGRESS -->
@@ -211,61 +240,184 @@
     <!-- MAIN CONTENT -->
     <div id="paper-container"></div>
 
-    <!-- FOOTER CARD (Bottom) -->
+    <!-- FOOTER CARD -->
     <div class="footer-card" id="main-footer">
         <div class="branding-text">
             Developed By <span class="sting-text">Ayush@8481</span>
         </div>
         <div class="button-group">
-            <button class="action-btn btn-district" onclick="openDistrict()">
+            <button class="action-btn btn-district" onclick="openDistrictModal()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12,2C15.31,2 18,4.66 18,7.95C18,12.41 12,19 12,19C12,19 6,12.41 6,7.95C6,4.66 8.69,2 12,2M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M20,19C20,21.21 16.42,23 12,23C7.58,23 4,21.21 4,19C4,17.71 5.22,16.56 7.11,15.83L7.75,16.74C6.67,17.19 6,17.81 6,18.5C6,19.88 8.69,21 12,21C15.31,21 18,19.88 18,18.5C18,17.81 17.33,17.19 16.25,16.74L16.89,15.83C18.78,16.56 20,17.71 20,19Z" /></svg>
-                Districtwise E-paper
+                Districtwise
             </button>
             <button class="action-btn btn-pdf" id="downloadBtn" onclick="generatePDF()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
                 Download PDF
+            </button>
+            <button class="action-btn btn-default" id="defaultBtn" onclick="toggleDefault()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
+                Set Default
             </button>
         </div>
     </div>
 
     <script>
         const { jsPDF } = window.jspdf;
-        // This is the source for main newspaper images
-        const TARGET_URL = "https://newslabzone.com/epaper/dainik-jagran#item13";
-        // This is your custom District URL
-        const DISTRICT_URL = "https://ayush8481lab.github.io/P/";
-        
-        let PAPER_PAGES = [];
 
-        // 0. DATE & SCROLL HANDLER
+        // --- DATA OBJECT ---
+        const DATA = {
+            "Uttar Pradesh": {
+                "Meerut Zone": [{n:"Meerut City", c:"29"}, {n:"Meerut Dehat", c:"30"}, {n:"Baghpat", c:"264"}, {n:"Bijnore", c:"252"}, {n:"Muzaffarnagar", c:"33"}, {n:"Saharanpur", c:"32"}, {n:"Shamli", c:"283"}],
+                "Agra Zone": [{n:"Agra City", c:"193"}, {n:"Agra Dehat", c:"259"}, {n:"Etah", c:"195"}, {n:"Firozabad", c:"199"}, {n:"Kasganj", c:"309"}, {n:"Mainpuri", c:"196"}, {n:"Mathura", c:"198"}, {n:"Mathura Dehat", c:"201"}],
+                "Lucknow Zone": [{n:"Lucknow City", c:"11"}, {n:"Ayodhya", c:"16"}, {n:"Ambadkarnagar", c:"258"}, {n:"Amethi", c:"321"}, {n:"Bahraich", c:"20"}, {n:"Balrampur", c:"285"}, {n:"Barabanki", c:"257"}, {n:"Gonda", c:"19"}, {n:"Hardoi", c:"21"}, {n:"Lakhimpur", c:"22"}, {n:"Raibareilly", c:"18"}, {n:"Sitapur", c:"23"}, {n:"Sultanpur", c:"17"}],
+                "Kanpur Zone": [{n:"Kanpur City", c:"64"}, {n:"Kanpur Dehat", c:"65"}, {n:"Auraiya", c:"295"}, {n:"Banda", c:"69"}, {n:"Etawah", c:"70"}, {n:"Farukhabad", c:"66"}, {n:"Fatehpur", c:"67"}, {n:"Hamirpur", c:"68"}, {n:"Jalon", c:"73"}, {n:"Kannoj", c:"74"}, {n:"Unnao", c:"77"}],
+                "Prayagraj Zone": [{n:"Prayagraj City", c:"79"}, {n:"Prayagraj Anchal", c:"80"}, {n:"Kaushambi", c:"81"}, {n:"Pratapgarh", c:"82"}, {n:"Maha-Kumbh", c:"277"}],
+                "Varanasi Zone": [{n:"Varanasi City", c:"45"}, {n:"Azamgarh", c:"48"}, {n:"Ballia", c:"49"}, {n:"Bhadohi", c:"53"}, {n:"Chandauli", c:"52"}, {n:"Gazipur", c:"47"}, {n:"Jaunpur", c:"50"}, {n:"Mau", c:"51"}, {n:"Mirzapur", c:"46"}, {n:"Sonbhadra", c:"54"}],
+                "Gorakhpur Zone": [{n:"Gorakhpur City", c:"56"}, {n:"Basti", c:"61"}, {n:"Deoria", c:"271"}, {n:"Kushinagar", c:"58"}, {n:"Maharajganj", c:"57"}, {n:"SiddharthNagar", c:"60"}],
+                "Bareilly & Moradabad": [{n:"Bareilly Nagar", c:"147"}, {n:"Moradabad City", c:"40"}, {n:"Rampur", c:"43"}, {n:"Sambhal", c:"268"}, {n:"Amroha", c:"267"}, {n:"Badaun", c:"149"}, {n:"Pilibhit", c:"152"}, {n:"Shahjanpur", c:"150"}],
+                "Aligarh & Jhansi": [{n:"Aligarh City", c:"36"}, {n:"Hathras", c:"38"}, {n:"Jhansi", c:"266"}, {n:"Lalitpur", c:"293"}]
+            },
+            "Delhi & NCR": {
+                "Capital Region": [{n:"Delhi City", c:"4"}, {n:"New Delhi", c:"262"}, {n:"Noida", c:"241"}, {n:"Ghaziabad", c:"242"}, {n:"Gurgaon", c:"244"}, {n:"Faridabad", c:"243"}, {n:"Sonipat", c:"245"}]
+            },
+            "Bihar": {
+                "Patna Zone": [{n:"Patna Nagar", c:"84"}, {n:"Ara", c:"93"}, {n:"Gaya", c:"92"}, {n:"Saran", c:"90"}, {n:"Siwan", c:"87"}, {n:"Vaishali", c:"94"}],
+                "Muzaffarpur Zone": [{n:"Muzaffarpur Nagar", c:"203"}, {n:"Darbhanga", c:"219"}, {n:"Madhubani", c:"216"}, {n:"Motihari", c:"215"}, {n:"Samstipur", c:"217"}, {n:"Sitamarhi", c:"218"}],
+                "Bhagalpur Zone": [{n:"Bhagalpur City", c:"205"}, {n:"Katihar", c:"230"}, {n:"Munger", c:"229"}, {n:"Purnea", c:"223"}, {n:"Saharsa", c:"206"}]
+            },
+            "Uttarakhand": {
+                "Garhwal & Kumaon": [{n:"Dehradun City", c:"104"}, {n:"Haridwar", c:"106"}, {n:"Rishikesh", c:"109"}, {n:"Roorkee", c:"107"}, {n:"Haldwani City", c:"143"}, {n:"Nainital", c:"323"}]
+            },
+            "Haryana": {
+                "Key Cities": [{n:"Hisar", c:"145"}, {n:"Panipat", c:"168"}, {n:"Rohtak", c:"175"}, {n:"Karnal", c:"172"}, {n:"Ambala", c:"169"}]
+            },
+            "Punjab": {
+                "Key Cities": [{n:"Ludhiana", c:"121"}, {n:"Amritsar", c:"183"}, {n:"Jalandhar", c:"186"}, {n:"Patiala", c:"124"}, {n:"Chandigarh", c:"261"}]
+            },
+            "Jharkhand": {
+                "Key Cities": [{n:"Ranchi", c:"212"}, {n:"Dhanbad", c:"139"}, {n:"Jamshedpur", c:"151"}]
+            },
+            "Jammu & Kashmir": {
+                "Key Cities": [{n:"Jammu", c:"25"}, {n:"Srinagar", c:"326"}]
+            },
+            "Himachal": {
+                "Key Cities": [{n:"Shimla", c:"98"}, {n:"Dharamshala", c:"102"}]
+            },
+            "West Bengal": {
+                "Key Cities": [{n:"Kolkata", c:"208"}, {n:"Siliguri", c:"221"}]
+            }
+        };
+
+        // --- STATE VARS ---
+        let currentCode = "262";
+        let currentName = "National";
+        let currentDate = new Date();
+        let paperPages = [];
+        let modalState = { level: 0, selectedState: null };
+        let scrollTimer;
+
+        // --- 1. INITIALIZATION ---
         window.addEventListener('load', () => {
-            const d = new Date();
-            const dateString = d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            document.getElementById('headerDate').innerText = dateString;
+            const todayISO = new Date().toISOString().split('T')[0];
+            const picker = document.getElementById('datePicker');
+            picker.value = todayISO;
+            picker.max = todayISO;
+            
+            // Check Default
+            const savedCode = localStorage.getItem('ayush_default_code');
+            const savedName = localStorage.getItem('ayush_default_name');
+            if(savedCode && savedName) {
+                currentCode = savedCode;
+                currentName = savedName;
+                updateDefaultUI(true);
+            }
 
-            let lastScrollY = window.scrollY;
+            loadPaper();
+
+            // Scroll Logic for Header & Badges
             const header = document.getElementById('smartHeader');
+            let lastY = 0;
             
             window.addEventListener('scroll', () => {
-                if (window.scrollY > 100) {
-                    header.classList.add('header-hidden');
-                } else {
-                    header.classList.remove('header-hidden');
-                }
+                const y = window.scrollY;
+                
+                // Header Hide/Show
+                if(y > 80 && y > lastY) header.classList.add('header-hidden');
+                else header.classList.remove('header-hidden');
+                lastY = y;
+
+                // Badge Logic: Show on scroll, hide after 1 sec
+                const badges = document.querySelectorAll('.page-badge');
+                badges.forEach(b => b.classList.add('visible'));
+                
+                clearTimeout(scrollTimer);
+                scrollTimer = setTimeout(() => {
+                    badges.forEach(b => b.classList.remove('visible'));
+                }, 1000);
             });
         });
 
-        // 1. DATA LOADING
-        window.addEventListener('DOMContentLoaded', async () => {
+        // --- 2. DATE LOGIC ---
+        function getJagranDate() {
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const d = String(currentDate.getDate()).padStart(2,'0');
+            const m = months[currentDate.getMonth()];
+            const y = currentDate.getFullYear();
+            return `${d}-${m}-${y}`;
+        }
+
+        function getHeaderDateStr() {
+            return currentDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function onDateChanged() {
+            const val = document.getElementById('datePicker').value;
+            if(!val) return;
+            currentDate = new Date(val);
+            loadPaper();
+        }
+
+        function resetToToday() {
+            const today = new Date();
+            document.getElementById('datePicker').value = today.toISOString().split('T')[0];
+            currentDate = today;
+            loadPaper();
+        }
+
+        // --- 3. LOADING LOGIC ---
+        async function loadPaper() {
             const loader = document.getElementById('loader');
             const status = document.getElementById('status-text');
             const errorDiv = document.getElementById('error-container');
+            const container = document.getElementById('paper-container');
             const footer = document.getElementById('main-footer');
 
-            setTimeout(() => { status.innerText = "Loading Newspaper..."; }, 1000);
+            loader.style.display = 'flex';
+            errorDiv.style.display = 'none';
+            footer.style.display = 'none';
+            container.innerHTML = '';
+
+            document.getElementById('edition-title').innerText = currentName.toUpperCase();
+            document.getElementById('headerDate').innerText = getHeaderDateStr();
+
+            // SET INITIAL TEXT
+            status.innerText = "Connecting Ayush@8481 Server...";
+            
+            // TIMER TO CHANGE TEXT IF SLOW
+            const textTimer = setTimeout(() => {
+                if(loader.style.display !== 'none') {
+                    status.innerText = "Loading E-Paper...";
+                }
+            }, 2000);
+
+            // Construct URL
+            const dateStr = getJagranDate();
+            const slug = currentName.replace(/\s+/g, '-');
+            const targetUrl = `https://epaper.jagran.com/mepaper/${dateStr}-${currentCode}-${slug}-edition-${slug}.html`;
 
             try {
-                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(TARGET_URL)}`;
+                // Fetch via Proxy
+                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
                 const res = await fetch(proxyUrl);
                 if (!res.ok) throw new Error("Connection Failed");
                 const htmlData = await res.text();
@@ -273,55 +425,60 @@
                 const regex = /(https?:\/\/[^"'>\s]+ss\.png)/gi;
                 const matches = htmlData.match(regex);
 
-                if (!matches || matches.length === 0) {
-                    loader.style.display = 'none';
-                    errorDiv.style.display = 'flex'; 
-                    return;
-                }
+                if (!matches || matches.length === 0) throw new Error("No Pages");
 
                 const unique = [...new Set(matches)];
-                PAPER_PAGES = unique.map(link => {
-                    const pgMatch = link.match(/-pg(\d+)-/);
-                    const num = pgMatch ? parseInt(pgMatch[1]) : 999;
+                paperPages = unique.map(link => {
                     const parts = link.split('/');
                     const file = parts.pop().replace('ss.png', '.png');
-                    const hqUrl = `${parts.join('/')}/M-${file}`;
-                    return { page: num, url: hqUrl };
-                }).sort((a,b) => a.page - b.page);
+                    return `${parts.join('/')}/M-${file}`;
+                });
 
-                setTimeout(() => {
-                    loader.style.display = 'none';
-                    footer.style.display = 'flex'; 
-                    renderPages();
-                }, 1500);
+                renderPages();
+                
+                // Done
+                clearTimeout(textTimer); // Stop timer
+                loader.style.display = 'none';
+                footer.style.display = 'flex';
+                
+                // Refresh heart state
+                const sCode = localStorage.getItem('ayush_default_code');
+                updateDefaultUI(sCode === currentCode);
 
             } catch (err) {
+                clearTimeout(textTimer);
                 loader.style.display = 'none';
+                document.getElementById('err-name').innerText = currentName;
+                document.getElementById('err-date').innerText = getHeaderDateStr();
                 errorDiv.style.display = 'flex';
             }
-        });
+        }
 
         function renderPages() {
             const container = document.getElementById('paper-container');
-            
-            PAPER_PAGES.forEach((item, index) => {
+            paperPages.forEach((url, i) => {
                 const div = document.createElement('div');
                 div.className = 'page-wrapper';
-                const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(item.url)}&output=jpg&q=80`;
-
+                
+                const proxy = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=jpg&q=80`;
+                
                 const img = document.createElement('img');
-                img.src = proxyUrl;
+                img.src = proxy;
                 img.className = 'hq-image';
-                img.id = `img-pg-${index}`;
+                img.id = `img-pg-${i}`;
                 img.loading = "lazy";
                 img.crossOrigin = "anonymous";
+                
                 img.onerror = function() {
-                    if (this.crossOrigin) { this.removeAttribute('crossorigin'); this.src = this.src; }
+                    if(this.src.includes('M-')) {
+                        const raw = url.replace('M-','');
+                        this.src = `https://wsrv.nl/?url=${encodeURIComponent(raw)}&output=jpg&q=80`;
+                    }
                 };
 
                 const badge = document.createElement('div');
                 badge.className = 'page-badge';
-                badge.innerText = `PG ${item.page}`;
+                badge.innerText = `PG ${i+1}`;
 
                 div.appendChild(img);
                 div.appendChild(badge);
@@ -329,20 +486,93 @@
             });
         }
 
-        // IFRAME ACTIONS (MODIFIED FOR YOUR LINK)
-        function openDistrict() {
-            // Updated to use your specified URL
-            document.getElementById('web-frame').src = DISTRICT_URL;
+        // --- 4. HIERARCHICAL SELECTION ---
+        function openDistrictModal() {
             document.getElementById('district-modal').style.display = 'flex';
+            showLevel1();
         }
-
-        function closeDistrict() {
+        function closeDistrictModal() {
             document.getElementById('district-modal').style.display = 'none';
-            document.getElementById('web-frame').src = "";
         }
 
-        // PDF GENERATION
+        // Level 1: States
+        function showLevel1() {
+            modalState.level = 1;
+            document.getElementById('modal-title').innerText = "Select State";
+            const list = document.getElementById('modal-list');
+            let html = '';
+            Object.keys(DATA).forEach(state => {
+                html += `<div class="list-item" onclick="showLevel2('${state}')"><span>${state}</span><span>➤</span></div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        // Level 2: Hubs
+        function showLevel2(state) {
+            modalState.level = 2;
+            modalState.selectedState = state;
+            document.getElementById('modal-title').innerText = state;
+            const list = document.getElementById('modal-list');
+            const hubs = DATA[state];
+            let html = `<div class="back-nav" onclick="showLevel1()">⬅ Back to States</div>`;
+            Object.keys(hubs).forEach(hub => {
+                html += `<div class="list-item" onclick="showLevel3('${hub}')"><span>${hub}</span><span>➤</span></div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        // Level 3: Districts
+        function showLevel3(hub) {
+            modalState.level = 3;
+            document.getElementById('modal-title').innerText = hub;
+            const list = document.getElementById('modal-list');
+            const dists = DATA[modalState.selectedState][hub];
+            let html = `<div class="back-nav" onclick="showLevel2('${modalState.selectedState}')">⬅ Back to ${modalState.selectedState}</div>`;
+            dists.forEach(d => {
+                html += `<div class="list-item" style="border-left-color:#444;" onclick="selectDistrict('${d.c}', '${d.n}')"><span>${d.n}</span></div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        function selectDistrict(code, name) {
+            currentCode = code;
+            currentName = name;
+            closeDistrictModal();
+            window.scrollTo(0,0);
+            loadPaper();
+        }
+
+        // --- 5. PREFERENCES ---
+        function toggleDefault() {
+            const btn = document.getElementById('defaultBtn');
+            if(btn.classList.contains('active')) {
+                localStorage.removeItem('ayush_default_code');
+                localStorage.removeItem('ayush_default_name');
+                updateDefaultUI(false);
+                alert("Default Removed");
+            } else {
+                localStorage.setItem('ayush_default_code', currentCode);
+                localStorage.setItem('ayush_default_name', currentName);
+                updateDefaultUI(true);
+                alert("Set as Default");
+            }
+        }
+
+        function updateDefaultUI(active) {
+            const btn = document.getElementById('defaultBtn');
+            if(active) {
+                btn.classList.add('active');
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg> Saved Default`;
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg> Set Default`;
+            }
+        }
+
+        // --- 6. PDF ---
         async function generatePDF() {
+            if(paperPages.length === 0) return;
+
             const modal = document.getElementById('progress-modal');
             const bar = document.getElementById('prog-bar');
             const pct = document.getElementById('prog-pct');
@@ -351,59 +581,58 @@
             modal.style.display = 'flex';
             btn.disabled = true;
 
-            try {
-                const doc = new jsPDF({ orientation: 'p', unit: 'mm' });
-                const PDF_WIDTH = 210;
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm' });
+            const PDF_WIDTH = 210;
 
-                for (let i = 0; i < PAPER_PAGES.length; i++) {
-                    const item = PAPER_PAGES[i];
-                    const percent = Math.round(((i) / PAPER_PAGES.length) * 100);
+            try {
+                for(let i=0; i<paperPages.length; i++) {
+                    const percent = Math.round(((i) / paperPages.length) * 100);
                     bar.style.width = `${percent}%`;
                     pct.innerText = `${percent}%`;
 
                     const imgEl = document.getElementById(`img-pg-${i}`);
-                    let base64 = "";
+                    let base64 = await getBase64(imgEl);
 
-                    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0 && imgEl.crossOrigin === "anonymous") {
-                        base64 = await imageToDataURL(imgEl);
-                    }
-                    if (!base64) {
-                        const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(item.url)}&output=jpg&q=80`;
-                        const res = await fetch(proxyUrl);
-                        if (!res.ok) throw new Error("Download failed");
+                    if(!base64) {
+                        const res = await fetch(imgEl.src);
                         const blob = await res.blob();
                         base64 = await blobToBase64(blob);
                     }
 
-                    const props = doc.getImageProperties(base64);
-                    const pdfHeight = (props.height / props.width) * PDF_WIDTH;
-
-                    if (i > 0) doc.addPage([PDF_WIDTH, pdfHeight]);
-                    else doc.internal.pageSize.setHeight(pdfHeight);
-                    doc.addImage(base64, 'JPEG', 0, 0, PDF_WIDTH, pdfHeight);
-                    
+                    if(base64) {
+                        const props = doc.getImageProperties(base64);
+                        const pdfHeight = (props.height / props.width) * PDF_WIDTH;
+                        if (i > 0) doc.addPage([PDF_WIDTH, pdfHeight]);
+                        else doc.internal.pageSize.setHeight(pdfHeight);
+                        doc.addImage(base64, 'JPEG', 0, 0, PDF_WIDTH, pdfHeight);
+                    }
                     await new Promise(r => setTimeout(r, 0));
                 }
-
+                
                 bar.style.width = '100%'; pct.innerText = '100%'; 
-                const dateStr = new Date().toISOString().slice(0,10);
-                doc.save(`E-Paper_${dateStr}_Live@8481.pdf`);
+                const dateStr = getJagranDate();
+                // Naming Update: Live@8481 appended
+                const fileName = `E-Paper_${currentName.replace(/\s/g,'_')}_${dateStr}_Live@8481.pdf`;
+                doc.save(fileName);
+                
                 setTimeout(() => { modal.style.display = 'none'; btn.disabled = false; bar.style.width = '0%'; }, 1500);
 
-            } catch (err) {
-                alert("PDF Error: " + err.message);
+            } catch(e) {
+                alert("PDF Error: " + e.message);
                 modal.style.display = 'none'; btn.disabled = false;
             }
         }
 
-        function imageToDataURL(img) {
-            return new Promise((resolve) => {
-                try {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-                    canvas.getContext('2d').drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
-                } catch (e) { resolve(null); }
+        function getBase64(img) {
+            return new Promise(resolve => {
+                if(img.complete && img.naturalWidth) {
+                    try {
+                        const c = document.createElement('canvas');
+                        c.width = img.naturalWidth; c.height = img.naturalHeight;
+                        c.getContext('2d').drawImage(img,0,0);
+                        resolve(c.toDataURL('image/jpeg', 0.8));
+                    } catch(e){ resolve(null); }
+                } else resolve(null);
             });
         }
 
@@ -416,4 +645,4 @@
         }
     </script>
 </body>
-        </html>
+                </html>
