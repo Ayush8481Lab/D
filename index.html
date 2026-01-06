@@ -174,7 +174,7 @@
         .list-item:active { background: #eee; }
         .back-nav { color: #D50000; font-weight: bold; padding: 10px; margin-bottom: 5px; display: block; cursor: pointer;}
 
-        /* CUSTOM ALERT MODAL */
+        /* CUSTOM ALERT POPUP */
         #custom-alert {
             z-index: 12000; background: rgba(0,0,0,0.6);
             display: none; align-items: center; justify-content: center;
@@ -341,9 +341,12 @@
         let paperPages = [];
         let modalState = { level: 0, selectedState: null };
         let scrollTimer;
+        let historyStack = 0; // Tracks how deep we are in modals
 
         // --- 1. INITIALIZATION ---
         window.addEventListener('load', () => {
+            cleanUpStorage(); // Auto-clean junk on load
+
             const todayISO = new Date().toISOString().split('T')[0];
             const picker = document.getElementById('datePicker');
             picker.value = todayISO;
@@ -378,7 +381,31 @@
                     badges.forEach(b => b.classList.remove('visible'));
                 }, 1000);
             });
+
+            // BACK BUTTON HANDLER (REVERSE HISTORY)
+            window.addEventListener('popstate', (e) => {
+                if (e.state) {
+                    if(e.state.page === 'modal') showLevel1(false);
+                    else if(e.state.page === 'level2') showLevel2(e.state.state, false);
+                    else if(e.state.page === 'level3') showLevel3(e.state.hub, false);
+                } else {
+                    // Base state - Close everything
+                    document.getElementById('district-modal').style.display = 'none';
+                    historyStack = 0;
+                }
+            });
         });
+
+        // 24H CLEANUP (Protects Preference)
+        function cleanUpStorage() {
+            const keysToKeep = ['ayush_default_code', 'ayush_default_name'];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!keysToKeep.includes(key)) {
+                    localStorage.removeItem(key);
+                }
+            }
+        }
 
         // --- 2. DATE LOGIC ---
         function getJagranDate() {
@@ -505,45 +532,65 @@
             });
         }
 
-        // --- 4. HIERARCHICAL MODAL ---
+        // --- 4. HIERARCHICAL MODAL WITH HISTORY ---
         function openDistrictModal() {
             document.getElementById('district-modal').style.display = 'flex';
-            showLevel1();
-        }
-        function closeDistrictModal() {
-            document.getElementById('district-modal').style.display = 'none';
+            historyStack++;
+            history.pushState({page:'modal'}, '', '#district');
+            showLevel1(false);
         }
 
-        function showLevel1() {
+        function closeDistrictModal() {
+            if(historyStack > 0) {
+                window.history.go(-historyStack); // Go back actual steps
+                historyStack = 0;
+            } else {
+                document.getElementById('district-modal').style.display = 'none';
+            }
+        }
+
+        function showLevel1(push = true) {
             modalState.level = 1;
             document.getElementById('modal-title').innerText = "Select State";
             const list = document.getElementById('modal-list');
             let html = '';
             Object.keys(DATA).forEach(state => {
-                html += `<div class="list-item" onclick="showLevel2('${state}')"><span>${state}</span><span>➤</span></div>`;
+                html += `<div class="list-item" onclick="userSelectState('${state}')"><span>${state}</span><span>➤</span></div>`;
             });
             list.innerHTML = html;
         }
 
-        function showLevel2(state) {
+        function userSelectState(state) {
+            historyStack++;
+            history.pushState({page:'level2', state:state}, '', '#state');
+            showLevel2(state, false);
+        }
+
+        function showLevel2(state, push) {
             modalState.level = 2;
             modalState.selectedState = state;
             document.getElementById('modal-title').innerText = state;
             const list = document.getElementById('modal-list');
             const hubs = DATA[state];
-            let html = `<div class="back-nav" onclick="showLevel1()">⬅ Back to States</div>`;
+            let html = `<div class="back-nav" onclick="window.history.back()">⬅ Back to States</div>`;
             Object.keys(hubs).forEach(hub => {
-                html += `<div class="list-item" onclick="showLevel3('${hub}')"><span>${hub}</span><span>➤</span></div>`;
+                html += `<div class="list-item" onclick="userSelectHub('${hub}')"><span>${hub}</span><span>➤</span></div>`;
             });
             list.innerHTML = html;
         }
 
-        function showLevel3(hub) {
+        function userSelectHub(hub) {
+            historyStack++;
+            history.pushState({page:'level3', hub:hub}, '', '#hub');
+            showLevel3(hub, false);
+        }
+
+        function showLevel3(hub, push) {
             modalState.level = 3;
             document.getElementById('modal-title').innerText = hub;
             const list = document.getElementById('modal-list');
             const dists = DATA[modalState.selectedState][hub];
-            let html = `<div class="back-nav" onclick="showLevel2('${modalState.selectedState}')">⬅ Back to ${modalState.selectedState}</div>`;
+            let html = `<div class="back-nav" onclick="window.history.back()">⬅ Back to ${modalState.selectedState}</div>`;
             dists.forEach(d => {
                 html += `<div class="list-item" style="border-left-color:#444;" onclick="selectDistrict('${d.c}', '${d.n}')"><span>${d.n}</span></div>`;
             });
@@ -553,7 +600,13 @@
         function selectDistrict(code, name) {
             currentCode = code;
             currentName = name;
-            closeDistrictModal();
+            // Clear History Stack for Modal
+            if(historyStack > 0) {
+                window.history.go(-historyStack);
+                historyStack = 0;
+            } else {
+                document.getElementById('district-modal').style.display = 'none';
+            }
             window.scrollTo(0,0);
             loadPaper();
         }
