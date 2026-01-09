@@ -616,14 +616,14 @@
             const btn = document.getElementById('defaultBtn');
             if(btn.classList.contains('active')) {
                 // Remove Default
-                localStorage.removeItem('ayush_default_code');
-                localStorage.removeItem('ayush_default_name');
+                localStorage.removeItem('Chandan_default_code');
+                localStorage.removeItem('Chandan_default_name');
                 updateDefaultUI(false);
                 showCustomAlert("Default preference removed.");
             } else {
                 // Set Default
-                localStorage.setItem('ayush_default_code', currentCode);
-                localStorage.setItem('ayush_default_name', currentName);
+                localStorage.setItem('Chandan_default_code', currentCode);
+                localStorage.setItem('Chandan_default_name', currentName);
                 updateDefaultUI(true);
                 showCustomAlert("By setting this Edition as default, you can see this edition daily at main page.");
             }
