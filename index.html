@@ -353,8 +353,8 @@
             picker.max = todayISO;
             
             // Check Default
-            const savedCode = localStorage.getItem('ayush_default_code');
-            const savedName = localStorage.getItem('ayush_default_name');
+            const savedCode = localStorage.getItem('Chandan_default_code');
+            const savedName = localStorage.getItem('Chandan_default_name');
             if(savedCode && savedName) {
                 currentCode = savedCode;
                 currentName = savedName;
@@ -398,7 +398,7 @@
 
         // 24H CLEANUP (Protects Preference)
         function cleanUpStorage() {
-            const keysToKeep = ['ayush_default_code', 'ayush_default_name'];
+            const keysToKeep = ['Chandan_default_code', 'Chandan_default_name'];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (!keysToKeep.includes(key)) {
