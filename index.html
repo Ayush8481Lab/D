@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Live@8481 - National E-Paper</title>
-    <!-- Load jsPDF Library -->
+    <!-- Load jsPDF for Normal Quality and PDF-Lib for Ultra HD Merging -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         /* --- RESET & BASIC SETUP --- */
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -23,11 +24,11 @@
         /* --- 1. TOP HEADER --- */
         .top-header {
             width: 100%;
-            height: 65px;
+            height: 70px;
             background: #ffffff;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             position: fixed; top: 0; z-index: 800;
-            border-bottom: 3px solid #D50000; /* Jagran Red Border */
+            border-bottom: 3px solid #D50000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
@@ -36,17 +37,28 @@
 
         .header-title {
             font-family: 'Georgia', 'Times New Roman', serif;
-            font-size: 22px; font-weight: 900;
+            font-size: 20px; font-weight: 900;
             color: #D50000; text-transform: uppercase; letter-spacing: 1px;
         }
 
         .header-date-row {
-            display: flex; align-items: center; gap: 8px; margin-top: 2px;
+            display: flex; align-items: center; gap: 12px; margin-top: 4px;
         }
 
         .header-date {
             font-size: 10px; color: #555; font-weight: 600;
             text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* HD Toggle Button */
+        .hd-toggle {
+            background: #eee; border: 1px solid #ccc; padding: 2px 8px;
+            border-radius: 4px; font-size: 10px; font-weight: bold;
+            cursor: pointer; transition: 0.3s; color: #666;
+        }
+        .hd-toggle.active {
+            background: #D50000; color: white; border-color: #D50000;
+            box-shadow: 0 0 8px rgba(213, 0, 0, 0.4);
         }
 
         /* Invisible Date Picker */
@@ -61,7 +73,7 @@
         #paper-container {
             width: 100%; max-width: 900px;
             display: flex; flex-direction: column; gap: 15px;
-            padding: 15px 0; padding-top: 80px; 
+            padding: 15px 0; padding-top: 85px; 
             min-height: 50vh;
         }
 
@@ -77,7 +89,7 @@
             background: #eee; pointer-events: none;
         }
 
-        /* PAGE BADGE (Scroll Logic) */
+        /* PAGE BADGE */
         .page-badge {
             position: absolute; top: 10px; right: 10px;
             background: rgba(0,0,0,0.7); color: white;
@@ -101,38 +113,33 @@
 
         .branding-text { color: #555; font-size: 14px; font-weight: 700; }
         
-        /* BLINKING ANIMATION */
         .sting-text {
             font-family: 'Arial', sans-serif; font-style: italic; font-weight: 900;
             animation: sting 2.5s infinite linear;
             display: inline-block; margin-left: 5px;
         }
         @keyframes sting {
-            0%,100% { color: #D50000; text-shadow: 0 0 5px rgba(213,0,0,0.2); }
-            50% { color: #0047AB; text-shadow: 0 0 5px rgba(0,71,171,0.2); }
+            0%,100% { color: #D50000; }
+            50% { color: #0047AB; }
         }
 
-        .button-group { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .button-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
         
         .action-btn {
-            border: none; padding: 12px 24px; border-radius: 30px;
-            font-size: 14px; font-weight: bold;
+            border: none; padding: 12px 20px; border-radius: 30px;
+            font-size: 13px; font-weight: bold;
             display: flex; align-items: center; gap: 8px;
-            cursor: pointer; transition: transform 0.2s; color: white; min-width: 160px; justify-content: center;
+            cursor: pointer; transition: transform 0.2s; color: white; min-width: 140px; justify-content: center;
         }
         .action-btn:active { transform: scale(0.95); }
 
-        .btn-district { background: #444; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .btn-pdf { background: linear-gradient(135deg, #D50000, #b70000); box-shadow: 0 4px 10px rgba(213, 0, 0, 0.3); }
-        
-        .btn-default { 
-            background: white; border: 2px solid #D50000; color: #D50000; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-        }
+        .btn-district { background: #444; }
+        .btn-pdf { background: linear-gradient(135deg, #D50000, #b70000); }
+        .btn-default { background: white; border: 2px solid #D50000; color: #D50000; }
         .btn-default.active { background: #D50000; color: white; }
 
         /* --- 4. MODALS & POPUPS --- */
-        #district-modal, #progress-modal, #loader, #error-container, #custom-alert {
+        #district-modal, #progress-modal, #loader, #error-container, #offline-container, #custom-alert, #pdf-choice-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         }
 
@@ -140,20 +147,23 @@
         #loader { background: white; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid #D50000; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        #status-text { font-weight: bold; color: #555; text-align: center; transition: all 0.3s; }
+        #status-text { font-weight: bold; color: #555; text-align: center; }
 
-        /* ERROR SCREEN */
-        #error-container { display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 500; background:#f0f2f5;}
-        .error-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
-        .retry-btn { background: #333; color: white; padding: 12px 25px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; margin-top:20px;}
+        /* PDF CHOICE MODAL */
+        #pdf-choice-modal { 
+            background: rgba(0,0,0,0.8); z-index: 11000; 
+            display: none; align-items: center; justify-content: center; 
+        }
+        .choice-card {
+            background: white; width: 90%; max-width: 350px; padding: 25px;
+            border-radius: 15px; text-align: center;
+        }
+        .choice-btn {
+            width: 100%; padding: 15px; margin-top: 10px; border-radius: 10px;
+            border: none; font-weight: bold; cursor: pointer;
+        }
 
-        /* PDF PROGRESS */
-        #progress-modal { background: rgba(0,0,0,0.9); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        .progress-box { background: #222; padding: 30px; border-radius: 12px; width: 85%; max-width: 320px; }
-        .progress-track { width: 100%; height: 8px; background: #444; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
-        .progress-fill { height: 100%; background: #00e676; width: 0%; transition: width 0.3s ease; }
-
-        /* HIERARCHICAL MODAL */
+        /* DISTRICT MODAL */
         #district-modal { background: #f8f9fa; z-index: 10001; display: none; flex-direction: column; }
         .modal-header {
             height: 60px; background: white; border-bottom: 1px solid #e0e0e0;
@@ -161,9 +171,7 @@
             padding: 0 20px; font-size: 18px; font-weight: 800; color: #333;
         }
         .close-iframe-btn { background: #D50000; border: none; color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; }
-        
         .modal-body { flex: 1; overflow-y: auto; padding: 15px; }
-        
         .list-item {
             background: white; padding: 16px; margin-bottom: 10px;
             border-radius: 8px; border-left: 4px solid #D50000;
@@ -171,41 +179,39 @@
             display: flex; justify-content: space-between; align-items: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
         }
-        .list-item:active { background: #eee; }
-        .back-nav { color: #D50000; font-weight: bold; padding: 10px; margin-bottom: 5px; display: block; cursor: pointer;}
+        .back-nav { color: #D50000; font-weight: bold; padding: 10px; display: block; cursor: pointer;}
 
-        /* CUSTOM ALERT POPUP */
-        #custom-alert {
-            z-index: 12000; background: rgba(0,0,0,0.6);
-            display: none; align-items: center; justify-content: center;
-        }
-        .alert-box {
-            background: white; width: 85%; max-width: 320px;
-            padding: 25px; border-radius: 15px; text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: popIn 0.3s ease;
-        }
-        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .alert-icon { font-size: 40px; margin-bottom: 15px; }
-        .alert-msg { font-size: 15px; color: #333; line-height: 1.5; margin-bottom: 20px; font-weight: 500; }
-        .alert-btn {
-            background: #D50000; color: white; border: none; padding: 10px 30px;
-            border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 14px;
-        }
+        /* PDF PROGRESS */
+        #progress-modal { background: rgba(0,0,0,0.9); z-index: 12000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        .progress-box { background: #222; padding: 30px; border-radius: 12px; width: 85%; max-width: 320px; text-align: center;}
+        .progress-track { width: 100%; height: 8px; background: #444; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+        .progress-fill { height: 100%; background: #00e676; width: 0%; transition: width 0.3s ease; }
 
+        /* ERROR SCREENS (SHARED STYLE) */
+        #error-container, #offline-container { display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 500; background:#f0f2f5;}
+        .error-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; }
+        .retry-btn { background: #333; color: white; padding: 12px 25px; border: none; border-radius: 30px; font-weight: bold; cursor: pointer; margin-top:20px; transition: 0.2s; }
+        .retry-btn:active { transform: scale(0.95); }
+
+        /* OFFLINE SPECIFIC ANIMATION */
+        .wifi-icon { font-size: 50px; margin-bottom: 15px; display: inline-block; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+
+        #custom-alert { z-index: 15000; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; }
+        .alert-box { background: white; width: 85%; max-width: 320px; padding: 25px; border-radius: 15px; text-align: center; }
     </style>
 </head>
 <body oncontextmenu="return false">
 
-    <!-- INITIAL LOADER -->
     <div id="loader">
         <div class="spinner"></div>
         <div id="status-text">Connecting Ayush@8481 Server...</div>
     </div>
 
-    <!-- TOP HEADER -->
     <header class="top-header" id="smartHeader">
         <div class="header-title" id="edition-title">NATIONAL E-PAPER</div>
         <div class="header-date-row">
+            <button id="hdToggleBtn" class="hd-toggle" onclick="toggleHDMode()">HD MODE</button>
             <div class="header-date" id="headerDate">Loading...</div>
             <div id="datePickerWrapper">
                 <span id="datePickerIcon">📅</span>
@@ -214,83 +220,87 @@
         </div>
     </header>
 
-    <!-- ERROR SCREEN -->
+    <!-- NOT PUBLISHED ERROR (Only when Regex fails) -->
     <div id="error-container">
         <div class="error-card">
             <div style="font-size:50px; margin-bottom:15px;">🗞️</div>
             <div style="font-size:20px; font-weight:bold; color:#333; margin-bottom:10px;">Not Published Yet</div>
             <div style="font-size:14px; color:#666; line-height:1.5;">
-                The edition for <b id="err-name">this district</b><br>
-                is not available for <b id="err-date">this date</b>.<br>
-                Please check back at 08:00 AM for Sure ☺️.
-                <br>
-                	---Ayush@8481
+                Edition for <b id="err-name">...</b><br>
+                is not available for <b id="err-date">...</b>.<br>
+                Check back at 08:00 AM.
             </div>
             <button class="retry-btn" onclick="openDistrictModal()">Change District</button>
             <button class="retry-btn" style="background:#D50000; margin-top:10px;" onclick="resetToToday()">Go to Today</button>
         </div>
     </div>
 
-    <!-- DISTRICT MODAL -->
+    <!-- OFFLINE / NO INTERNET UI -->
+    <div id="offline-container">
+        <div class="error-card">
+            <div class="wifi-icon">📡</div>
+            <div style="font-size:20px; font-weight:bold; color:#333; margin-bottom:10px;">No Internet</div>
+            <div style="font-size:14px; color:#666; line-height:1.5;">
+                We can't connect to the server.<br>
+                Please check your data or Wi-Fi.
+            </div>
+            <button class="retry-btn" style="background:#0047AB;" onclick="loadPaper()">Retry Connection</button>
+        </div>
+    </div>
+
     <div id="district-modal">
         <div class="modal-header">
             <span id="modal-title">Select State</span>
             <button class="close-iframe-btn" onclick="closeDistrictModal()">Close X</button>
         </div>
-        <div class="modal-body" id="modal-list">
-            <!-- Content injected via JS -->
+        <div class="modal-body" id="modal-list"></div>
+    </div>
+
+    <!-- PDF CHOICE MODAL -->
+    <div id="pdf-choice-modal">
+        <div class="choice-card">
+            <div style="font-weight:bold; font-size:18px; margin-bottom:15px;">Download Confirm??</div>
+            <button class="" style="" onclick="">
+                <b></b><br><small></small>
+            </button>
+            <button class="choice-btn" style="background:#D50000; color:white;" onclick="initiatePDF('ultra')">
+                <b>Download HD Quality</b><br><small>High-Resolution</small>
+            </button>
+            <button class="choice-btn" style="background:transparent; color:#888;" onclick="closeChoiceModal()">Cancel</button>
         </div>
     </div>
 
-    <!-- PDF PROGRESS -->
     <div id="progress-modal">
         <div class="progress-box">
-            <div style="font-size:18px; font-weight:bold; margin-bottom:20px;">Generating PDF</div>
-            <span style="font-size:28px; font-weight:bold; display:block; margin-bottom:5px;" id="prog-pct">0%</span>
-            <div class="progress-track">
-                <div class="progress-fill" id="prog-bar"></div>
-            </div>
-            <div style="font-size:13px; color:#ccc;" id="prog-details">Downloading E-Paper...</div>
+            <div id="prog-title" style="font-size:16px; font-weight:bold;">Generating PDF</div>
+            <span style="font-size:28px; font-weight:bold; display:block; margin-top:10px;" id="prog-pct">0%</span>
+            <div class="progress-track"><div class="progress-fill" id="prog-bar"></div></div>
+            <div style="font-size:12px; color:#ccc;" id="prog-details">Processing Page...</div>
         </div>
     </div>
 
-    <!-- CUSTOM ALERT POPUP -->
     <div id="custom-alert">
         <div class="alert-box">
-            <div class="alert-icon">🔔</div>
-            <div class="alert-msg" id="alert-text"></div>
-            <button class="alert-btn" onclick="closeCustomAlert()">OK</button>
+            <div id="alert-text" style="font-size:15px; margin-bottom:20px;"></div>
+            <button style="background:#D50000; color:white; border:none; padding:10px 30px; border-radius:20px; font-weight:bold;" onclick="closeCustomAlert()">OK</button>
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
     <div id="paper-container"></div>
 
-    <!-- FOOTER CARD -->
     <div class="footer-card" id="main-footer">
-        <div class="branding-text">
-            Developed By <span class="sting-text">Ayush@8481</span>
-        </div>
+        <div class="branding-text">Developed By <span class="sting-text">Ayush@8481</span></div>
         <div class="button-group">
-            <button class="action-btn btn-district" onclick="openDistrictModal()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12,2C15.31,2 18,4.66 18,7.95C18,12.41 12,19 12,19C12,19 6,12.41 6,7.95C6,4.66 8.69,2 12,2M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M20,19C20,21.21 16.42,23 12,23C7.58,23 4,21.21 4,19C4,17.71 5.22,16.56 7.11,15.83L7.75,16.74C6.67,17.19 6,17.81 6,18.5C6,19.88 8.69,21 12,21C15.31,21 18,19.88 18,18.5C18,17.81 17.33,17.19 16.25,16.74L16.89,15.83C18.78,16.56 20,17.71 20,19Z" /></svg>
-                Districtwise
-            </button>
-            <button class="action-btn btn-pdf" id="downloadBtn" onclick="generatePDF()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
-                Download PDF
-            </button>
-            <button class="action-btn btn-default" id="defaultBtn" onclick="toggleDefault()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg>
-                Set Default
-            </button>
+            <button class="action-btn btn-district" onclick="openDistrictModal()">Districtwise</button>
+            <button class="action-btn btn-pdf" onclick="openChoiceModal()">Download PDF</button>
+            <button class="action-btn btn-default" id="defaultBtn" onclick="toggleDefault()">Set Default</button>
         </div>
     </div>
 
     <script>
         const { jsPDF } = window.jspdf;
+        const { PDFDocument } = PDFLib;
 
-        // --- DATA OBJECT ---
         const DATA = {
             "Uttar Pradesh": {
                 "Meerut Zone": [{n:"Meerut City", c:"29"}, {n:"Meerut Dehat", c:"30"}, {n:"Baghpat", c:"264"}, {n:"Bijnore", c:"252"}, {n:"Muzaffarnagar", c:"33"}, {n:"Saharanpur", c:"32"}, {n:"Shamli", c:"283"}],
@@ -323,408 +333,264 @@
             "Jharkhand": {
                 "Key Cities": [{n:"Ranchi", c:"212"}, {n:"Dhanbad", c:"139"}, {n:"Jamshedpur", c:"151"}]
             },
-            "Jammu & Kashmir": {
-                "Key Cities": [{n:"Jammu", c:"25"}, {n:"Srinagar", c:"326"}]
-            },
-            "Himachal": {
-                "Key Cities": [{n:"Shimla", c:"98"}, {n:"Dharamshala", c:"102"}]
-            },
-            "West Bengal": {
-                "Key Cities": [{n:"Kolkata", c:"208"}, {n:"Siliguri", c:"221"}]
-            }
+            "Jammu & Kashmir": { "Key Cities": [{n:"Jammu", c:"25"}, {n:"Srinagar", c:"326"}] },
+            "Himachal": { "Key Cities": [{n:"Shimla", c:"98"}, {n:"Dharamshala", c:"102"}] },
+            "West Bengal": { "Key Cities": [{n:"Kolkata", c:"208"}, {n:"Siliguri", c:"221"}] }
         };
 
-        // --- STATE VARS ---
-        let currentCode = "262";
-        let currentName = "National";
-        let currentDate = new Date();
-        let paperPages = [];
-        let modalState = { level: 0, selectedState: null };
-        let scrollTimer;
-        let historyStack = 0; // Tracks how deep we are in modals
+        let currentCode = "262", currentName = "National", currentDate = new Date();
+        let paperPages = []; 
+        let historyStack = 0, isHD = false;
 
-        // --- 1. INITIALIZATION ---
         window.addEventListener('load', () => {
-            cleanUpStorage(); // Auto-clean junk on load
-
             const todayISO = new Date().toISOString().split('T')[0];
-            const picker = document.getElementById('datePicker');
-            picker.value = todayISO;
-            picker.max = todayISO;
+            document.getElementById('datePicker').value = todayISO;
+            document.getElementById('datePicker').max = todayISO;
             
-            // Check Default
-            const savedCode = localStorage.getItem('Chandan_default_code');
-            const savedName = localStorage.getItem('Chandan_default_name');
-            if(savedCode && savedName) {
-                currentCode = savedCode;
-                currentName = savedName;
-                updateDefaultUI(true);
-            }
-
+            const sc = localStorage.getItem('Chandan_default_code'), sn = localStorage.getItem('Chandan_default_name');
+            if(sc && sn) { currentCode = sc; currentName = sn; }
             loadPaper();
 
-            // Scroll Logic
-            const header = document.getElementById('smartHeader');
+            // Smart Header
             let lastY = 0;
-            
             window.addEventListener('scroll', () => {
                 const y = window.scrollY;
-                if(y > 80 && y > lastY) header.classList.add('header-hidden');
-                else header.classList.remove('header-hidden');
+                if(y > 80 && y > lastY) document.getElementById('smartHeader').classList.add('header-hidden');
+                else document.getElementById('smartHeader').classList.remove('header-hidden');
                 lastY = y;
-
-                // Badge Logic
+                
                 const badges = document.querySelectorAll('.page-badge');
                 badges.forEach(b => b.classList.add('visible'));
-                clearTimeout(scrollTimer);
-                scrollTimer = setTimeout(() => {
-                    badges.forEach(b => b.classList.remove('visible'));
-                }, 1000);
+                clearTimeout(window.scTimer);
+                window.scTimer = setTimeout(() => badges.forEach(b => b.classList.remove('visible')), 1000);
             });
 
-            // BACK BUTTON HANDLER (REVERSE HISTORY)
-            window.addEventListener('popstate', (e) => {
-                if (e.state) {
-                    if(e.state.page === 'modal') showLevel1(false);
-                    else if(e.state.page === 'level2') showLevel2(e.state.state, false);
-                    else if(e.state.page === 'level3') showLevel3(e.state.hub, false);
-                } else {
-                    // Base state - Close everything
-                    document.getElementById('district-modal').style.display = 'none';
-                    historyStack = 0;
+            // Network State Listeners
+            window.addEventListener('online', () => {
+                if(document.getElementById('offline-container').style.display === 'flex') {
+                    loadPaper();
                 }
+            });
+            window.addEventListener('offline', () => {
+               // Optional: Show offline toast, but usually we wait for action
             });
         });
 
-        // 24H CLEANUP (Protects Preference)
-        function cleanUpStorage() {
-            const keysToKeep = ['Chandan_default_code', 'Chandan_default_name'];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (!keysToKeep.includes(key)) {
-                    localStorage.removeItem(key);
-                }
-            }
+        function toggleHDMode() {
+            isHD = !isHD;
+            document.getElementById('hdToggleBtn').classList.toggle('active', isHD);
+            renderPages(); 
         }
 
-        // --- 2. DATE LOGIC ---
-        function getJagranDate() {
-            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const d = String(currentDate.getDate()).padStart(2,'0');
-            const m = months[currentDate.getMonth()];
-            const y = currentDate.getFullYear();
-            return `${d}-${m}-${y}`;
-        }
-
-        function getHeaderDateStr() {
-            return currentDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        }
-
-        function onDateChanged() {
-            const val = document.getElementById('datePicker').value;
-            if(!val) return;
-            currentDate = new Date(val);
-            loadPaper();
-        }
-
-        function resetToToday() {
-            const today = new Date();
-            document.getElementById('datePicker').value = today.toISOString().split('T')[0];
-            currentDate = today;
-            loadPaper();
-        }
-
-        // --- 3. LOADING LOGIC ---
         async function loadPaper() {
-            const loader = document.getElementById('loader');
-            const status = document.getElementById('status-text');
-            const errorDiv = document.getElementById('error-container');
-            const container = document.getElementById('paper-container');
-            const footer = document.getElementById('main-footer');
-
-            loader.style.display = 'flex';
-            errorDiv.style.display = 'none';
-            footer.style.display = 'none';
-            container.innerHTML = '';
-
-            document.getElementById('edition-title').innerText = currentName.toUpperCase();
-            document.getElementById('headerDate').innerText = getHeaderDateStr();
-
-            status.innerText = "Connecting Ayush@8481 Server...";
+            // UI References
+            const l = document.getElementById('loader');
+            const errDiv = document.getElementById('error-container'); // Not Published
+            const offDiv = document.getElementById('offline-container'); // No Internet
+            const c = document.getElementById('paper-container');
+            const f = document.getElementById('main-footer');
             
-            const textTimer = setTimeout(() => {
-                if(loader.style.display !== 'none') {
-                    status.innerText = "Loading E-Paper...";
-                }
-            }, 2000);
+            // Reset UI
+            l.style.display = 'flex'; 
+            errDiv.style.display = 'none'; 
+            offDiv.style.display = 'none';
+            f.style.display = 'none'; 
+            c.innerHTML = '';
 
-            // Construct URL
-            const dateStr = getJagranDate();
-            const slug = currentName.replace(/\s+/g, '-');
-            const targetUrl = `https://epaper.jagran.com/mepaper/${dateStr}-${currentCode}-${slug}-edition-${slug}.html`;
+            // Update Header Info
+            document.getElementById('edition-title').innerText = currentName.toUpperCase();
+            document.getElementById('headerDate').innerText = currentDate.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+            // 1. Check Internet immediately
+            if (!navigator.onLine) {
+                l.style.display = 'none';
+                offDiv.style.display = 'flex';
+                return;
+            }
+
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const ds = `${String(currentDate.getDate()).padStart(2,'0')}-${months[currentDate.getMonth()]}-${currentDate.getFullYear()}`;
+            const target = `https://epaper.jagran.com/mepaper/${ds}-${currentCode}-${currentName.replace(/\s+/g,'-')}-edition-${currentName.replace(/\s+/g,'-')}.html`;
 
             try {
-                // Fetch via Proxy
-                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-                const res = await fetch(proxyUrl);
-                if (!res.ok) throw new Error("Connection Failed");
-                const htmlData = await res.text();
-
-                const regex = /(https?:\/\/[^"'>\s]+ss\.png)/gi;
-                const matches = htmlData.match(regex);
-
-                if (!matches || matches.length === 0) throw new Error("No Pages");
-
-                const unique = [...new Set(matches)];
-                paperPages = unique.map(link => {
-                    const parts = link.split('/');
-                    const file = parts.pop().replace('ss.png', '.png');
-                    return `${parts.join('/')}/M-${file}`;
-                });
-
+                const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`);
+                
+                if (!res.ok) throw new Error("NetworkError");
+                
+                const html = await res.text();
+                // Regex to find pages
+                const matches = html.match(/(https?:\/\/[^"'>\s]+ss\.png)/gi);
+                
+                // 2. Logic Check: If we got HTML but no matches -> NOT PUBLISHED
+                if(!matches || matches.length === 0) {
+                    throw new Error("No Pages"); 
+                }
+                
+                paperPages = [...new Set(matches)].map(url => url.replace('ss.png', '.pdf').replace('/M-', '/'));
                 renderPages();
+                l.style.display = 'none'; f.style.display = 'flex';
+                updateDefaultUI(localStorage.getItem('Chandan_default_code') === currentCode);
+            } catch(err) {
+                l.style.display = 'none';
                 
-                clearTimeout(textTimer); 
-                loader.style.display = 'none';
-                footer.style.display = 'flex';
-                
-                const sCode = localStorage.getItem('Chandan_default_code');
-                updateDefaultUI(sCode === currentCode);
-
-            } catch (err) {
-                clearTimeout(textTimer);
-                loader.style.display = 'none';
-                document.getElementById('err-name').innerText = currentName;
-                document.getElementById('err-date').innerText = getHeaderDateStr();
-                errorDiv.style.display = 'flex';
+                // 3. Error Handling Separation
+                if (err.message === "No Pages") {
+                    // Logic: Fetched successfully but regex failed -> Content missing -> Not Published Yet
+                    errDiv.style.display = 'flex';
+                    document.getElementById('err-name').innerText = currentName;
+                    document.getElementById('err-date').innerText = ds;
+                } else {
+                    // Logic: Fetch failed, Network Error, Proxy Error -> No Internet UI
+                    offDiv.style.display = 'flex';
+                }
             }
         }
 
         function renderPages() {
-            const container = document.getElementById('paper-container');
+            const c = document.getElementById('paper-container');
+            c.innerHTML = '';
+            const width = isHD ? 6200 : 3000;
             paperPages.forEach((url, i) => {
                 const div = document.createElement('div');
                 div.className = 'page-wrapper';
-                
-                const proxy = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=jpg&q=80`;
-                
                 const img = document.createElement('img');
-                img.src = proxy;
                 img.className = 'hq-image';
-                img.id = `img-pg-${i}`;
                 img.loading = "lazy";
-                img.crossOrigin = "anonymous";
-                
-                img.onerror = function() {
-                    if(this.src.includes('M-')) {
-                        const raw = url.replace('M-','');
-                        this.src = `https://wsrv.nl/?url=${encodeURIComponent(raw)}&output=jpg&q=80`;
-                    }
-                };
-
+                img.src = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=${width}&maxage=1d&output=jpg&q=50`;
                 const badge = document.createElement('div');
                 badge.className = 'page-badge';
                 badge.innerText = `PG ${i+1}`;
-
-                div.appendChild(img);
-                div.appendChild(badge);
-                container.appendChild(div);
+                div.append(img, badge);
+                c.appendChild(div);
             });
         }
 
-        // --- 4. HIERARCHICAL MODAL WITH HISTORY ---
-        function openDistrictModal() {
-            document.getElementById('district-modal').style.display = 'flex';
-            historyStack++;
-            history.pushState({page:'modal'}, '', '#district');
-            showLevel1(false);
-        }
+        /* PDF LOGIC */
+        function openChoiceModal() { document.getElementById('pdf-choice-modal').style.display = 'flex'; }
+        function closeChoiceModal() { document.getElementById('pdf-choice-modal').style.display = 'none'; }
 
-        function closeDistrictModal() {
-            if(historyStack > 0) {
-                window.history.go(-historyStack); // Go back actual steps
-                historyStack = 0;
-            } else {
-                document.getElementById('district-modal').style.display = 'none';
-            }
-        }
-
-        function showLevel1(push = true) {
-            modalState.level = 1;
-            document.getElementById('modal-title').innerText = "Select State";
-            const list = document.getElementById('modal-list');
-            let html = '';
-            Object.keys(DATA).forEach(state => {
-                html += `<div class="list-item" onclick="userSelectState('${state}')"><span>${state}</span><span>➤</span></div>`;
-            });
-            list.innerHTML = html;
-        }
-
-        function userSelectState(state) {
-            historyStack++;
-            history.pushState({page:'level2', state:state}, '', '#state');
-            showLevel2(state, false);
-        }
-
-        function showLevel2(state, push) {
-            modalState.level = 2;
-            modalState.selectedState = state;
-            document.getElementById('modal-title').innerText = state;
-            const list = document.getElementById('modal-list');
-            const hubs = DATA[state];
-            let html = `<div class="back-nav" onclick="window.history.back()">⬅ Back to States</div>`;
-            Object.keys(hubs).forEach(hub => {
-                html += `<div class="list-item" onclick="userSelectHub('${hub}')"><span>${hub}</span><span>➤</span></div>`;
-            });
-            list.innerHTML = html;
-        }
-
-        function userSelectHub(hub) {
-            historyStack++;
-            history.pushState({page:'level3', hub:hub}, '', '#hub');
-            showLevel3(hub, false);
-        }
-
-        function showLevel3(hub, push) {
-            modalState.level = 3;
-            document.getElementById('modal-title').innerText = hub;
-            const list = document.getElementById('modal-list');
-            const dists = DATA[modalState.selectedState][hub];
-            let html = `<div class="back-nav" onclick="window.history.back()">⬅ Back to ${modalState.selectedState}</div>`;
-            dists.forEach(d => {
-                html += `<div class="list-item" style="border-left-color:#444;" onclick="selectDistrict('${d.c}', '${d.n}')"><span>${d.n}</span></div>`;
-            });
-            list.innerHTML = html;
-        }
-
-        function selectDistrict(code, name) {
-            currentCode = code;
-            currentName = name;
-            // Clear History Stack for Modal
-            if(historyStack > 0) {
-                window.history.go(-historyStack);
-                historyStack = 0;
-            } else {
-                document.getElementById('district-modal').style.display = 'none';
-            }
-            window.scrollTo(0,0);
-            loadPaper();
-        }
-
-        // --- 5. PREFERENCES & CUSTOM ALERT ---
-        function toggleDefault() {
-            const btn = document.getElementById('defaultBtn');
-            if(btn.classList.contains('active')) {
-                // Remove Default
-                localStorage.removeItem('Chandan_default_code');
-                localStorage.removeItem('Chandan_default_name');
-                updateDefaultUI(false);
-                showCustomAlert("Default preference removed.");
-            } else {
-                // Set Default
-                localStorage.setItem('Chandan_default_code', currentCode);
-                localStorage.setItem('Chandan_default_name', currentName);
-                updateDefaultUI(true);
-                showCustomAlert("By setting this Edition as default, you can see this edition daily at main page.");
-            }
-        }
-
-        function updateDefaultUI(active) {
-            const btn = document.getElementById('defaultBtn');
-            if(active) {
-                btn.classList.add('active');
-                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg> Saved Default`;
-            } else {
-                btn.classList.remove('active');
-                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z" /></svg> Set Default`;
-            }
-        }
-
-        function showCustomAlert(msg) {
-            const modal = document.getElementById('custom-alert');
-            const txt = document.getElementById('alert-text');
-            txt.innerText = msg;
-            modal.style.display = 'flex';
-        }
-
-        function closeCustomAlert() {
-            document.getElementById('custom-alert').style.display = 'none';
-        }
-
-        // --- 6. PDF ---
-        async function generatePDF() {
-            if(paperPages.length === 0) return;
-
+        async function initiatePDF(type) {
+            closeChoiceModal();
             const modal = document.getElementById('progress-modal');
             const bar = document.getElementById('prog-bar');
             const pct = document.getElementById('prog-pct');
-            const btn = document.getElementById('downloadBtn');
-
+            const details = document.getElementById('prog-details');
             modal.style.display = 'flex';
-            btn.disabled = true;
-
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm' });
-            const PDF_WIDTH = 210;
 
             try {
-                for(let i=0; i<paperPages.length; i++) {
-                    const percent = Math.round(((i) / paperPages.length) * 100);
-                    bar.style.width = `${percent}%`;
-                    pct.innerText = `${percent}%`;
+                if (type === 'ultra') {
+                    // ULTRA HD: Download real PDF files and merge them
+                    const mergedPdf = await PDFDocument.create();
+                    for(let i=0; i<paperPages.length; i++) {
+                        const p = Math.round((i/paperPages.length)*100);
+                        bar.style.width = p+'%'; pct.innerText = p+'%';
+                        details.innerText = `Merging High-Res Page ${i+1}...`;
 
-                    const imgEl = document.getElementById(`img-pg-${i}`);
-                    let base64 = await getBase64(imgEl);
-
-                    if(!base64) {
-                        const res = await fetch(imgEl.src);
-                        const blob = await res.blob();
-                        base64 = await blobToBase64(blob);
+                        const pdfUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(paperPages[i])}`;
+                        const bytes = await fetch(pdfUrl).then(res => res.arrayBuffer());
+                        const pdf = await PDFDocument.load(bytes);
+                        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                        copiedPages.forEach((page) => mergedPdf.addPage(page));
                     }
+                    const pdfBytes = await mergedPdf.save();
+                    const ds = currentDate.toISOString().split('T')[0];
+                    downloadBlob(pdfBytes, `Live@8481_${currentName}_${ds}_UltraHD.pdf`, 'application/pdf');
 
-                    if(base64) {
-                        const props = doc.getImageProperties(base64);
-                        const pdfHeight = (props.height / props.width) * PDF_WIDTH;
-                        if (i > 0) doc.addPage([PDF_WIDTH, pdfHeight]);
-                        else doc.internal.pageSize.setHeight(pdfHeight);
-                        doc.addImage(base64, 'JPEG', 0, 0, PDF_WIDTH, pdfHeight);
+                } else {
+                    // NORMAL: Use current images from screen (Fast)
+                    const doc = new jsPDF({ orientation: 'p', unit: 'mm' });
+                    const PDF_W = 210;
+                    for(let i=0; i<paperPages.length; i++) {
+                        const p = Math.round((i/paperPages.length)*100);
+                        bar.style.width = p+'%'; pct.innerText = p+'%';
+                        details.innerText = `Processing Page ${i+1}...`;
+                        
+                        const imgOnPage = document.querySelectorAll('.hq-image')[i];
+                        const imgUrl = imgOnPage.src;
+                        const blob = await fetch(imgUrl).then(r => r.blob());
+                        const b64 = await new Promise(r => { const f = new FileReader(); f.onloadend = () => r(f.result); f.readAsDataURL(blob); });
+                        
+                        const props = doc.getImageProperties(b64);
+                        const pdfH = (props.height / props.width) * PDF_W;
+                        if(i > 0) doc.addPage([PDF_W, pdfH]);
+                        else doc.internal.pageSize.setHeight(pdfH);
+                        doc.addImage(b64, 'JPEG', 0, 0, PDF_W, pdfH);
                     }
-                    await new Promise(r => setTimeout(r, 0));
+                    const ds = currentDate.toISOString().split('T')[0];
+                    doc.save(`Live@8481_${currentName}_${ds}_Normal.pdf`);
                 }
-                
-                bar.style.width = '100%'; pct.innerText = '100%'; 
-                const dateStr = getJagranDate();
-                // Name Update: Live@8481 First
-                const fileName = `Live@8481_E-Paper_${currentName.replace(/\s/g,'_')}_${dateStr}.pdf`;
-                doc.save(fileName);
-                
-                setTimeout(() => { modal.style.display = 'none'; btn.disabled = false; bar.style.width = '0%'; }, 1500);
+            } catch(e) { 
+                console.error(e);
+                alert("Error generating PDF. Please check connection."); 
+            }
+            modal.style.display = 'none';
+        }
 
-            } catch(e) {
-                alert("PDF Error: " + e.message);
-                modal.style.display = 'none'; btn.disabled = false;
+        function downloadBlob(data, fileName, mimeType) {
+            const blob = new Blob([data], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = fileName;
+            anchor.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        /* MODALS & HELPERS */
+        function openDistrictModal() {
+            document.getElementById('district-modal').style.display = 'flex';
+            history.pushState({p:'m'}, '', '#district'); historyStack++;
+            showStates();
+        }
+        function closeDistrictModal() { window.history.go(-historyStack); historyStack = 0; document.getElementById('district-modal').style.display = 'none'; }
+        
+        function showStates() {
+            document.getElementById('modal-title').innerText = "Select State";
+            let h = '';
+            Object.keys(DATA).forEach(s => h += `<div class="list-item" onclick="showHubs('${s}')">${s}<span>➤</span></div>`);
+            document.getElementById('modal-list').innerHTML = h;
+        }
+        function showHubs(s) {
+            history.pushState({p:'h', s}, '', '#hubs'); historyStack++;
+            document.getElementById('modal-title').innerText = s;
+            let h = `<div class="back-nav" onclick="window.history.back()">⬅ Back</div>`;
+            Object.keys(DATA[s]).forEach(hb => h += `<div class="list-item" onclick="showDists('${s}','${hb}')">${hb}<span>➤</span></div>`);
+            document.getElementById('modal-list').innerHTML = h;
+        }
+        function showDists(s, hb) {
+            history.pushState({p:'d'}, '', '#dists'); historyStack++;
+            document.getElementById('modal-title').innerText = hb;
+            let h = `<div class="back-nav" onclick="window.history.back()">⬅ Back</div>`;
+            DATA[s][hb].forEach(d => h += `<div class="list-item" style="border-left-color:#444" onclick="select('${d.c}','${d.n}')">${d.n}</div>`);
+            document.getElementById('modal-list').innerHTML = h;
+        }
+        function select(c, n) { currentCode = c; currentName = n; closeDistrictModal(); window.scrollTo(0,0); loadPaper(); }
+        
+        window.onpopstate = (e) => {
+            if(!e.state) { document.getElementById('district-modal').style.display = 'none'; historyStack=0; }
+            else if(e.state.p === 'm') showStates();
+            else if(e.state.p === 'h') showHubs(e.state.s);
+        };
+
+        function toggleDefault() {
+            const sc = localStorage.getItem('Chandan_default_code');
+            if(sc === currentCode) {
+                localStorage.removeItem('Chandan_default_code'); localStorage.removeItem('Chandan_default_name');
+                updateDefaultUI(false); showCustomAlert("Preference Removed");
+            } else {
+                localStorage.setItem('Chandan_default_code', currentCode); localStorage.setItem('Chandan_default_name', currentName);
+                updateDefaultUI(true); showCustomAlert("Saved as Default Edition");
             }
         }
-
-        function getBase64(img) {
-            return new Promise(resolve => {
-                if(img.complete && img.naturalWidth) {
-                    try {
-                        const c = document.createElement('canvas');
-                        c.width = img.naturalWidth; c.height = img.naturalHeight;
-                        c.getContext('2d').drawImage(img,0,0);
-                        resolve(c.toDataURL('image/jpeg', 0.8));
-                    } catch(e){ resolve(null); }
-                } else resolve(null);
-            });
+        function updateDefaultUI(a) {
+            const b = document.getElementById('defaultBtn');
+            b.classList.toggle('active', a);
+            b.innerText = a ? "Saved Default" : "Set Default";
         }
-
-        function blobToBase64(blob) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-            });
-        }
+        function onDateChanged() { currentDate = new Date(document.getElementById('datePicker').value); loadPaper(); }
+        function resetToToday() { currentDate = new Date(); document.getElementById('datePicker').value = currentDate.toISOString().split('T')[0]; loadPaper(); }
+        function showCustomAlert(m) { document.getElementById('alert-text').innerText = m; document.getElementById('custom-alert').style.display='flex'; }
+        function closeCustomAlert() { document.getElementById('custom-alert').style.display='none'; }
     </script>
 </body>
     </html>
